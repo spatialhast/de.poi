@@ -1,0 +1,173 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Germany OSM POI</title>
+    <link rel="icon" href="data/temple-2.png" type="image/png">
+
+    <link href="assets/leaflet-0.7.7/leaflet.css" rel="stylesheet" />
+    <link href="assets/leaflet.markercluster/MarkerCluster.css" rel="stylesheet" />
+    <link href="assets/leaflet.markercluster/MarkerCluster.Default.css" rel="stylesheet" />
+
+</head>
+
+<body>
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+        }
+        
+        html,
+        body,
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        .leaflet-popup-content-wrapper {
+            border-radius: 3px;
+        }
+        
+        .leaflet-popup-content {
+            margin: 5px 20px 5px 5px;
+        }
+        
+        a {
+            text-decoration: none;
+        }
+        
+        .info {
+            padding: 6px 8px;
+            font: 14px/16px Arial, Helvetica, sans-serif;
+            background: white;
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+        
+        .legend {
+            line-height: 26px;
+            color: #555;
+        }
+        
+        .legend img {
+            width: 26px;
+            height: 26px;
+            float: left;
+            margin-right: 8px;
+        }
+    </style>
+
+    <div id="map"></div>
+
+    <script src="assets/jquery-1.11.1.min.js"></script>
+    <script src="assets/leaflet-0.7.7/leaflet.js"></script>
+    <script src="assets/leaflet.markercluster/leaflet.markercluster.js"></script>
+    <script src="assets/spin.min.js"></script>
+    <script src="assets/leaflet.spin.min.js"></script>
+
+    <script>
+        var access_token = 'pk.eyJ1IjoiaGFzdCIsImEiOiJjaXFxZmdheXEwMDZjaHNtYTdid3ZudWdsIn0.co1GT25Bbo6tWToF3MMWtA';
+
+        var layerMapboxStreets = new L.tileLayer('https://b.tiles.mapbox.com/v4/mapbox.streets/{z}/{x}/{y}.png?access_token=' + access_token, {
+            attribution: 'Tiles &copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
+        });
+
+        var layerMapboxImagery = new L.tileLayer('https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.png?access_token=' + access_token, {
+            attribution: 'Tiles &copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a>'
+        });
+
+        var map = new L.map('map', {
+            minZoom: 3,
+            maxZoom: 18
+        });
+
+        map.attributionControl.addAttribution('Icons &copy; <a href="https://mapicons.mapsmarker.com/">Map Icons Collection</a>');
+        layerMapboxStreets.addTo(map)
+
+        var baseMaps = {
+            "Mapbox Streets": layerMapboxStreets,
+            "Mapbox Imagery": layerMapboxImagery
+        };
+
+        L.control.layers(baseMaps, null, {
+            collapsed: false
+        }).addTo(map);
+
+        var markerClusters = new L.MarkerClusterGroup({
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: true,
+            zoomToBoundsOnClick: true,
+            disableClusteringAtZoom: 18
+        });
+        map.addLayer(markerClusters);
+
+        var markerIcon = {
+            "park": "data/forest.png",
+            "museum": "data/temple-2.png",
+            "artwork": "data/statue-2.png",
+            "monument": "data/monument.png",
+            "memorial": "data/memorial.png"
+        };
+
+        var pilotsLayer = L.geoJson(null, {
+            pointToLayer: function(feature, latlng) {
+                return L.marker(latlng, {
+                    icon: L.icon({
+                        iconUrl: markerIcon[feature.properties.type],
+                        iconSize: [32, 37],
+                        iconAnchor: [16, 36],
+                        popupAnchor: [0, -36]
+                    }),
+                    title: feature.properties.name,
+                    riseOnHover: true
+                });
+            },
+            onEachFeature: function(feature, layer) {
+                if (feature.properties) {
+                    var name = feature.properties.name ? '<b>name: </b>' + feature.properties.name + '</br>' : '';
+                    var content = name + '<b>type: </b>' + feature.properties.type + '</br>' +
+                        '<b>id: </b>' + '<a href="http://www.openstreetmap.org/node/' + feature.properties.id + '" target="_blank">' + feature.properties.id + '</a>';
+                    layer.bindPopup(content);
+                };
+            }
+        });
+
+        map.spin(true, {
+            lines: 10,
+            length: 40
+        });
+
+        $.getJSON("data/poi_point.geojson", function(data) {
+            pilotsLayer.addData(data);
+            markerClusters.addLayer(pilotsLayer);
+            map.fitBounds(markerClusters);
+            map.spin(false);
+            legend.addTo(map);
+        });
+
+        var legend = L.control({
+            position: 'bottomleft'
+        });
+
+        legend.onAdd = function(map) {
+            var div = L.DomUtil.create('div', 'info legend'),
+                labels = [];
+
+            for (item in markerIcon) {
+
+                labels.push('<img src=' + markerIcon[item] + '> ' + item);
+
+            };
+
+            labels.push('<div class="leaflet-control-layers-separator"></div>' + '<img class="icon icons8-Download-from-the-Cloud" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAABb0lEQVQ4T72UT07CUBDGv2kCiWzsEfQEwgkMN9AlPg2yNGBCT+ARYAFxaUmgLNUTUE9gbyBHwA0mJemQKQ+15bWwaHjLN29+882/Ryj4UME8HBf4PJ2eRRGazGwTsQ1Yc8vC6KHRmGdlZlTYe3m1y+VlD6D7DMe3MDxpOa3rRdq+A9SwGUDV/PpyEIaVehqaAB6gLBGDGaPO7U0iixgooFLp54kIXZMqcZR7IjR37VxrKxVs72PgYOwFRLjISjGKqC42y+JZ+g0zfBD3O0q9x0EHY69LhF5evfKAf37stpVq0XDi+QAuDcBvADoV1qWgvn4nDTs1qHUEyNnqkvWRd8PJpArQp9mHAwHKLO1EEwdmXqxWlfPtaGyat/wiIjtzsAdjzzV3b+vCQVup2iHNA/BBm/ViqZVR5QbLLjNRfmDJCE48Nrou0pwc6J690UP+uyl6S670yu1Zu/9w9qPI8h/vGiLoyN9XfpJma+Ef7Bq7M5HethDpXgAAAABJRU5ErkJggg==" width="18" height="18"><a href="data/poi_point.geojson" download>geojson</a> / <a href="data/poi_point.zip" download>shp</a>');
+
+            div.innerHTML = labels.join('<br>');
+            return div;
+        };
+    </script>
+</body>
+
+</html>
